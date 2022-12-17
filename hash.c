@@ -235,21 +235,24 @@ void* hash_get(HashTable* ht, char* key) {
         return NULL; 
 }
 
-void* test_nodes(HashTable* ht, Node* n1, Node *n2) {
+void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
         size_t h1, h2;
         
+        h1 = hash_value(ht, n1->key);
         if (n2->key == NULL) {
+
+                printf("Nodo NULL alla posizione successiva\n");
                 n1->key = NULL;
                 n1->element = NULL;
+                
                 return n1;
+        
         }
 
-        printf("Testing per lo switch di %s e %s\n", n1->key, n2->key);
-        
-        // Viene confrontato l'hash per appurara l'avvenuta collisione
-        h1 = hash_value(ht, n1->key);
         h2 = hash_value(ht, n2->key);
 
+        printf("Testing per lo switch di %s e %s\n", n1->key, n2->key);
+        // Viene confrontato l'hash per appurare l'avvenuta collisione
         if (h1 == h2) {
                 // In caso collidano si effettua lo switch
                 // dal nodo n2 verso quello n1
@@ -261,19 +264,16 @@ void* test_nodes(HashTable* ht, Node* n1, Node *n2) {
                 printf("Procedo con l'eliminazione\n");
                 n2->key = NULL;
                 n2->element = NULL;
-                
-                // E viene ritornato il nodo n1 
-                // ora con i dati del nodo n2 
-
         } else {
                 // In caso contrario viene semplicemente
                 // pulito il nodo n1
                 n1->key = NULL;
                 n1->element = NULL;
-
         }
+
         // Decremento il numero di elementi
         ht->num_elements--;
+
         // In entrambi i casi viene ritornato il nodo
         // di cui era stata chiesta la rimozione
         return n1;
@@ -301,7 +301,8 @@ void* hash_remove(HashTable* ht, char* key) {
                         if (prober == ht->size) {
                                 prober = 0;
                         }
-                        return test_nodes(ht, 
+
+                        return _test_nodes(ht, 
                                         &ht->node[hash], 
                                         &ht->node[prober]);
                 }
