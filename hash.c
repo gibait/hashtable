@@ -1,3 +1,9 @@
+#if 0
+  #define LOG(a) printf a
+#else
+  #define LOG(a) (void)0
+#endif
+
 #include "hash.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -141,14 +147,14 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         // procedo ad espandere la HashTable raddoppiandone le dimensioni
         if ((int) (ht->num_elements/ht->size)*100 >= ht->high_density) {
                 if (hash_expand(ht)) {
-                        printf("HashTable espansa! Nuova dimensione: %ld\n", 
-                                ht->size);
+                        LOG(("HashTable espansa! Nuova dimensione: %ld\n", 
+                                ht->size));
         }
         }
         
         // Computo il digest della chiave data
         hash = hash_value(ht, key);
-        printf("Key: %s --> Digest: %lu\n", key, hash);
+        LOG(("Key: %s --> Digest: %lu\n", key, hash));
         
         // Inizio ciclando sul nodo fornito all'indice dato dal digest
         while (ht->node[hash].key != NULL) {
@@ -157,8 +163,8 @@ int hash_insert(HashTable* ht, char *key, void* element) {
                 if (strcmp(key, ht->node[hash].key) == 0) {
                         // Se la chiave combacia non si tratta di una
                         // collisione bensì di un tentativo di sovrascrittura
-                        printf("Updating '%s' (at %ld) with %s element\n",
-                                        key, hash, (char*) element);
+                        LOG(("Updating '%s' (at %ld) with %s element\n",
+                                        key, hash, (char*) element));
                         ht->node[hash].element = element;
                         ht->num_elements++;
                         return 0;
@@ -179,8 +185,8 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         // All'uscita del ciclo ho il valore dell'indice che punta al primo
         // nodo non NULL, motivo per il quale posso procedere a inserire i 
         // dati che sono stati forniti dall'utente
-        printf("Inserting %s (at %ld) with '%s' key\n", 
-                (char*) element, hash, key);
+        LOG(("Inserting %s (at %ld) with '%s' key\n", 
+                (char*) element, hash, key));
         // Effettuo una copia del valore contenuto all'interno del puntatore
         key_copy = strdup(key);
         element_copy = strdup((char*) element);
@@ -204,8 +210,7 @@ void* hash_get(HashTable* ht, char* key) {
         // Viene computato il digest della chiave fornita
         hash = hash_value(ht, key);
 
-        printf("Sto cercando l'elemento di chiave %s\n", key);
-       
+        LOG(("Sto cercando l'elemento di chiave %s\n", key)); 
         // Inizio ciclando sul nodo fornito all'indice dato dal digest
         while (ht->node[hash].key != NULL) {
                 counter++;
@@ -217,7 +222,7 @@ void* hash_get(HashTable* ht, char* key) {
                 // Qualora non sia vuoto confronto la chiave presente con 
                 // quella fornita
                 if (strcmp(key, ht->node[hash].key) == 0) {
-                        printf("Trovato alla pos. %lu\n", hash);
+                        LOG(("Trovato alla pos. %lu\n", hash));
                         return ht->node[hash].element;
                 }
                 // Nel caso in cui le chiavi non combacino si tratta di una
@@ -231,7 +236,7 @@ void* hash_get(HashTable* ht, char* key) {
                         // trattando l'array come circolare
                         hash = 0;
                 }
-                printf("Continuo cercando alla pos. %lu\n", hash);
+                //LOG(("Continuo cercando alla pos. %lu\n", hash));
         }
         
         // In caso contrario non è stato trovato niente
@@ -244,7 +249,7 @@ void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
         h1 = hash_value(ht, n1->key);
         if (n2->key == NULL) {
 
-                printf("Nodo NULL alla posizione successiva\n");
+                LOG(("Nodo NULL alla posizione successiva\n"));
                 n1->key = NULL;
                 n1->element = NULL;
                 
@@ -254,17 +259,17 @@ void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
 
         h2 = hash_value(ht, n2->key);
 
-        printf("Testing per lo switch di %s e %s\n", n1->key, n2->key);
+        LOG(("Testing per lo switch di %s e %s\n", n1->key, n2->key));
         // Viene confrontato l'hash per appurare l'avvenuta collisione
         if (h1 == h2) {
                 // In caso collidano si effettua lo switch
                 // dal nodo n2 verso quello n1
-                printf("Trovati due nodi compatibili per lo switch\n");
+                LOG(("Trovati due nodi compatibili per lo switch\n"));
                 n1->key = n2->key;
                 n1->element = n2->element;
                 
                 // Viene pulito il nodo n2
-                printf("Procedo con l'eliminazione\n");
+                LOG(("Procedo con l'eliminazione\n"));
                 n2->key = NULL;
                 n2->element = NULL;
         } else {
@@ -299,7 +304,8 @@ void* hash_remove(HashTable* ht, char* key) {
                         // probing del nodo alla posizione successiva. In
                         // questo modo cerco di tenere la HashTable il più
                         // libera possibile ed evito le cosidette TOMBSTONE
-                        printf("Trovato nodo alla posizione indicata\n");
+                        LOG(("Trovato nodo alla posizione indicata\n"));
+                        // Decremento il numero di elementi
                         prober = hash + 1;
                         if (prober == ht->size) {
                                 prober = 0;
