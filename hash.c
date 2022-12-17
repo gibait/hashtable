@@ -128,7 +128,8 @@ Boolean hash_expand(HashTable* ht) {
 
 int hash_insert(HashTable* ht, char *key, void* element) {
         size_t hash;
-        char* to_insert;
+        char* key_copy;
+        void* element_copy;
         
         // Controllo che chiave ed elemento non siano nulli
         if (key == NULL || element == NULL) {
@@ -181,9 +182,10 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         printf("Inserting %s (at %ld) with '%s' key\n", 
                 (char*) element, hash, key);
         // Effettuo una copia del valore contenuto all'interno del puntatore
-        to_insert = strdup(key);
-        ht->node[hash].key = (char*) to_insert;
-        ht->node[hash].element = element;
+        key_copy = strdup(key);
+        element_copy = strdup((char*) element);
+        ht->node[hash].key = (char*) key_copy;
+        ht->node[hash].element = element_copy;
         ht->num_elements++;
 
         return 1;
