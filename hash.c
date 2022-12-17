@@ -51,6 +51,7 @@ size_t hash_value_djb2(HashTable* ht, char* key) {
 
 #define TABLE_MAX_LOAD 70
 #define TABLE_MIN_LOAD 30
+
 HashTable* create_hash_table(size_t size) {
         HashTable *ht;
         
@@ -61,8 +62,13 @@ HashTable* create_hash_table(size_t size) {
                 return NULL;
         }
 
+        if (size == 0) {
+                perror("Dimensione troppo piccola");
+                return NULL;
+        }
+
         // Alloco prima lo spazio per la HashTable stessa
-        ht = (HashTable*) malloc(sizeof(HashTable));
+        ht = malloc(sizeof(HashTable));
         if (ht == NULL) {
                 perror("Errore durante l'allocazione della HashTable");
                 return NULL;
@@ -71,6 +77,7 @@ HashTable* create_hash_table(size_t size) {
         // Alloco lo spazio per i singoli nodi
         ht->node = calloc(size, sizeof(Node));
         if (ht->node == NULL) {
+                free(ht);
                 perror("Errore durante l'allocazione dei nodi");
                 return NULL;
         }
