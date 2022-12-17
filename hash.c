@@ -127,12 +127,10 @@ Boolean hash_expand(HashTable* ht) {
 
 int hash_insert(HashTable* ht, char *key, void* element) {
         size_t hash;
-        Node* node;
+        char* to_insert;
         
-        // Viene prima di tutto verificato che vi sia spazio a disposizione
-        // per un nuovo elemento. Questo impedisce anche al ciclo sottostante
-        // di ciclare all'infinito alla ricerca di un nodo NULL
-        if (hash_num_elements(ht) == ht->size) {
+        // Controllo che chiave ed elemento non siano nulli
+        if (key == NULL || element == NULL) {
                 return -1;
         }
 
@@ -157,7 +155,11 @@ int hash_insert(HashTable* ht, char *key, void* element) {
                 if (strcmp(key, ht->node[hash].key) == 0) {
                         // Se la chiave combacia non si tratta di una
                         // collisione bensì di un tentativo di sovrascrittura
+                        printf("Updating '%s' (at %ld) with %s element\n",
+                                        key, hash, (char*) element);
+                        ht->node[hash].element = element;
                         ht->num_elements++;
+                        return 0;
                 }
                 // Nel caso in cui le chiavi non combacino si tratta di una
                 // collisione. Procedo con il linear probing: incremento 
@@ -175,7 +177,14 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         // All'uscita del ciclo ho il valore dell'indice che punta al primo
         // nodo non NULL, motivo per il quale posso procedere a inserire i 
         // dati che sono stati forniti dall'utente
+        printf("Inserting %s (at %ld) with '%s' key\n", 
+                (char*) element, hash, key);
+        // Effettuo una copia del valore contenuto all'interno del puntatore
+        to_insert = strdup(key);
+        ht->node[hash].key = (char*) to_insert;
+        ht->node[hash].element = element;
         ht->num_elements++;
+
         return 1;
 }
 
