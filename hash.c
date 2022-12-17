@@ -8,15 +8,44 @@ typedef enum {false, true} Boolean;
 #define lock pthread_mutex_lock
 #define unlock pthread_mutex_unlock
 
-size_t hash_value(HashTable* ht, char* key) {
-        int i;
-        size_t hash = 123;
-        // Funzione di hash: prende tutte i caratteri della chiave e li somma 
-        // in modulo alla dimensione della HashTable
+// Di seguito sono definite alcune funzioni di hashing diverse.
+// Viene utilizzata quella indicata con il define
 
-        for (i = 0; key[i] != '\0'; i++) {
-                hash += (int) key[i];
+#define hash_value hash_value_FNV1a
+
+#define FNV_OFFSET 14695981039346656037UL
+#define FNV_PRIME 1099511628211UL
+
+size_t hash_value_FNV1a(HashTable* ht, char* key) {
+    size_t hash = FNV_OFFSET;
+
+    for (const char* p = key; *p; p++) {
+        hash ^= (size_t)(unsigned char)(*p);
+        hash *= FNV_PRIME;
+    }
+
+    return hash % ht->size;
+}
+
+size_t hash_value_sdbm(HashTable* ht, char* key) {
+        size_t hash = 0;
+        size_t counter;
+
+        for (counter = 0; key[counter] != '\0'; counter++) {
+                hash = key[counter] + (hash << 6) + (hash << 16) - hash;
         }
+
+        return hash % ht->size;
+}
+
+size_t hash_value_djb2(HashTable* ht, char* key) {
+        size_t hash = 0;
+        size_t counter;
+
+        for (counter = 0; key[counter] != '\0'; counter++) {
+                hash = ((hash << 5) + hash) + key[counter];
+        }
+
         return hash % ht->size;
 }
 
