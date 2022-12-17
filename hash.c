@@ -190,6 +190,8 @@ int hash_insert(HashTable* ht, char *key, void* element) {
 
 void* hash_get(HashTable* ht, char* key) {
         size_t hash;
+        size_t counter = 0;
+
         // Controllo che il numero di elementi sia > 1 
         // così da evitare il blocco di codice seguente
         if (ht->num_elements == 0) {
@@ -203,6 +205,12 @@ void* hash_get(HashTable* ht, char* key) {
        
         // Inizio ciclando sul nodo fornito all'indice dato dal digest
         while (ht->node[hash].key != NULL) {
+                counter++;
+                if (counter == ht->size) {
+                        // Controllo di non aver superato la dimensione
+                        // della HashTable in iterazioni del ciclo
+                        return NULL;
+                }
                 // Qualora non sia vuoto confronto la chiave presente con 
                 // quella fornita
                 if (strcmp(key, ht->node[hash].key) == 0) {
@@ -214,7 +222,7 @@ void* hash_get(HashTable* ht, char* key) {
                 // l'indice e mi sposto a destra di una posizione fino a che 
                 // non trovo un nodo NULL che termini il ciclo
                 hash++;
-                if (hash > ht->size) {
+                if (hash == ht->size) {
                         // Nel caso in abbia raggiunto il limite imposto
                         // dalle dimensioni della struttura, riparto da 0
                         // trattando l'array come circolare
