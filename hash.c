@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 typedef enum {false, true} Boolean;
+
 #define lock pthread_mutex_lock
 #define unlock pthread_mutex_unlock
 
@@ -349,6 +350,7 @@ void hash_set_resize_low_density(struct hash_table* ht, int fill_factor) {
 
         ht->low_density = fill_factor;
 }
+
 void destroy_hash_table(HashTable* ht) {
         free(ht->node);
         free(ht);
