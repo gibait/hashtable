@@ -17,6 +17,7 @@ typedef struct node {
 typedef struct hash_table {
         Node *node;
         size_t size;
+        size_t num_elements;
 } HashTable;
 
 

@@ -44,6 +44,7 @@ HashTable* create_hash_table(size_t size) {
         }
 
         ht->size = size;
+        ht->num_elements = 0;
 
         return ht;
 }
@@ -59,14 +60,15 @@ int hash_insert(HashTable* ht, char *key, void* element) {
                 return -1;
         }
 
-        // Alloco e popolo il nodo con i parametri forniti
-        node = malloc(sizeof(Node));
-        if (node == NULL) {
-                perror("Errore allocazione nodo");
-                exit(-1);
+        // Verifico che il numero di nodi all'interno della HashTable non
+        // superi il valore di densità superiore stabilito. In caso contrario
+        // procedo ad espandere la HashTable raddoppiandone le dimensioni
+        if ((int) (ht->num_elements/ht->size)*100 >= ht->high_density) {
+                if (hash_expand(ht)) {
+                        printf("HashTable espansa! Nuova dimensione: %ld\n", 
+                                ht->size);
         }
-        node->key = key;
-        node->element = element;
+        }
         
         // Computo il digest della chiave data
         hash = hash_value(ht, key);
@@ -79,8 +81,7 @@ int hash_insert(HashTable* ht, char *key, void* element) {
                 if (strcmp(key, ht->node[hash].key) == 0) {
                         // Se la chiave combacia non si tratta di una
                         // collisione bensì di un tentativo di sovrascrittura
-                        ht->node[hash] = *node;
-                        return 1;
+                        ht->num_elements++;
                 }
                 // Nel caso in cui le chiavi non combacino si tratta di una
                 // collisione. Procedo con il linear probing: incremento 
@@ -98,12 +99,17 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         // All'uscita del ciclo ho il valore dell'indice che punta al primo
         // nodo non NULL, motivo per il quale posso procedere a inserire i 
         // dati che sono stati forniti dall'utente
-        ht->node[hash] = *node;
+        ht->num_elements++;
         return 1;
 }
 
 void* hash_get(HashTable* ht, char* key) {
         size_t hash;
+        // Controllo che il numero di elementi sia > 1 
+        // così da evitare il blocco di codice seguente
+        if (ht->num_elements == 0) {
+                return NULL;
+        }
         
         // Viene computato il digest della chiave fornita
         hash = hash_value(ht, key);
@@ -173,6 +179,8 @@ void* test_nodes(HashTable* ht, Node* n1, Node *n2) {
                 n1->element = NULL;
 
         }
+        // Decremento il numero di elementi
+        ht->num_elements--;
         // In entrambi i casi viene ritornato il nodo
         // di cui era stata chiesta la rimozione
         return n1;
