@@ -18,6 +18,8 @@ typedef struct hash_table {
         Node *node;
         size_t size;
         size_t num_elements;
+        int high_density;
+        int low_density;
 } HashTable;
 
 
@@ -51,8 +53,13 @@ void destroy_hash_table(HashTable* ht);
 /* Hashing function */
 size_t hash_value(HashTable* ht, char* key);
 
+/* Set the fill density of the table after which it will be expanded. 
+   The fill factor is a number between 1 and 100. */
+void hash_set_resize_high_density(struct hash_table* ht, int fill_factor);
 
-#define EMPTY (void*) 0x01
-#define TOMBSTONE (void*) 0x02
+/* Set the fill density of the table below which it will be shrank. 
+   The fill factor is a number between 1 and 100.*/
+void hash_set_resize_low_density(struct hash_table* ht, int fill_factor);
+
 
 #endif // _HASH_TABLE_H

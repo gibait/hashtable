@@ -4,6 +4,7 @@
 #include <string.h>
 #include <pthread.h>
 
+typedef enum {false, true} Boolean;
 #define lock pthread_mutex_lock
 #define unlock pthread_mutex_unlock
 
@@ -19,6 +20,8 @@ size_t hash_value(HashTable* ht, char* key) {
         return hash % ht->size;
 }
 
+#define TABLE_MAX_LOAD 70
+#define TABLE_MIN_LOAD 30
 HashTable* create_hash_table(size_t size) {
         HashTable *ht;
         
@@ -45,8 +48,45 @@ HashTable* create_hash_table(size_t size) {
 
         ht->size = size;
         ht->num_elements = 0;
+        ht->high_density = TABLE_MAX_LOAD;
+        ht->low_density = TABLE_MIN_LOAD;
 
         return ht;
+}
+
+Boolean hash_expand(HashTable* ht) {
+        HashTable* expanded;
+        size_t doubled;
+        size_t i;
+
+        // Raddoppio le dimensioni della HashTable attuale
+        // e controllo che non siano troppo grandi
+        doubled = ht->size * 2;
+        if (doubled + doubled < doubled) {
+                return false;
+        }
+
+        // Creo una HashTable temporanea di dimensioni doppie
+        expanded = create_hash_table(doubled);
+        if (expanded == NULL) {
+                return false;
+        }
+        
+        // Procedo ad inserire tutti gli elementi della HashTable originale
+        // in quella di dimensioni raddoppiate, così facendo gli hash verranno
+        // calcolati sulla base delle nuove dimensioni
+        for (i = 0; i < ht->size; i++) {  
+                if (ht->node[i].key != NULL) {
+                        hash_insert(expanded, 
+                                ht->node[i].key, 
+                                ht->node[i].element);
+                }
+        }
+
+        // Procedo a copiare la memoria puntata dalla neontata HashTable
+        // alla locazione di memoria originariamente puntata da ht
+        memcpy(ht, expanded, sizeof(HashTable));
+        return true;
 }
 
 int hash_insert(HashTable* ht, char *key, void* element) {
@@ -232,6 +272,29 @@ size_t hash_num_elements(HashTable* ht) {
         return busy_nodes;
 }
 
+void hash_set_resize_high_density(struct hash_table* ht, int fill_factor) {
+        if (fill_factor < 1 || fill_factor > 99) {
+                return;
+        }
+
+        if (fill_factor + fill_factor < fill_factor) {
+                return;
+        }
+
+        ht->high_density = fill_factor;
+}
+
+void hash_set_resize_low_density(struct hash_table* ht, int fill_factor) {
+        if (fill_factor < 1 || fill_factor > 99) {
+                return;
+        }
+
+        if (fill_factor + fill_factor < fill_factor) {
+                return;
+        }
+
+        ht->low_density = fill_factor;
+}
 void destroy_hash_table(HashTable* ht) {
         free(ht->node);
         free(ht);
