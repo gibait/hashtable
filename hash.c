@@ -251,7 +251,6 @@ void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
                 n1->element = NULL;
                 
                 return n1;
-        
         }
 
         h2 = hash_value(ht, n2->key);
@@ -276,9 +275,6 @@ void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
                 n1->element = NULL;
         }
 
-        // Decremento il numero di elementi
-        ht->num_elements--;
-
         // In entrambi i casi viene ritornato il nodo
         // di cui era stata chiesta la rimozione
         return n1;
@@ -287,27 +283,32 @@ void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
 void* hash_remove(HashTable* ht, char* key) {
         size_t hash;
         size_t prober;
+        size_t counter = 0;
         
         // Computo l'hash della chiave data
         hash = hash_value(ht, key);
-        printf("Inizio la rimozione dell'elemento con chiave: %lu\n", hash);
+        LOG(("Inizio la rimozione dell'elemento con chiave: %lu\n", hash));
         
-        // Controllo che all'indice indicato dal digest il nodo non sia NULL
-        if (ht->node[hash].key != NULL) {
-                // In caso di successo continuo verificando che le chiavi
-                // corrispondano
+        for (; counter < ht->size; counter++, hash = (hash + 1) % ht->size) {
+                // Controllo che all'indice indicato dal digest 
+                // il nodo non sia NULL
+                if (ht->node[hash].key == NULL) {
+                        continue;
+                }
+                // Nel caso in cui la condizione precedente sia soddisfatta
+                // procedo comparando le chiavi
                 if (strcmp(key, ht->node[hash].key) == 0) {
+                        LOG(("Trovato nodo alla posizione indicata\n"));
+                        // Decremento il numero di elementi
+                        ht->num_elements--;
                         // Prima di procedere con l'eliminazione faccio il
                         // probing del nodo alla posizione successiva. In
                         // questo modo cerco di tenere la HashTable il più
-                        // libera possibile ed evito le cosidette TOMBSTONE
-                        LOG(("Trovato nodo alla posizione indicata\n"));
-                        // Decremento il numero di elementi
+                        // libera possibile
                         prober = hash + 1;
                         if (prober == ht->size) {
                                 prober = 0;
                         }
-
                         return _test_nodes(ht, 
                                         &ht->node[hash], 
                                         &ht->node[prober]);
