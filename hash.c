@@ -165,8 +165,7 @@ int hash_insert(HashTable* ht, char *key, void* element) {
                         // collisione bensì di un tentativo di sovrascrittura
                         LOG(("Updating '%s' (at %ld) with %s element\n",
                                         key, hash, (char*) element));
-                        ht->node[hash].element = element;
-                        ht->num_elements++;
+                        ht->node[hash].element = strdup((char*) element);
                         return 0;
                 }
                 // Nel caso in cui le chiavi non combacino si tratta di una
@@ -188,10 +187,8 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         LOG(("Inserting %s (at %ld) with '%s' key\n", 
                 (char*) element, hash, key));
         // Effettuo una copia del valore contenuto all'interno del puntatore
-        key_copy = strdup(key);
-        element_copy = strdup((char*) element);
-        ht->node[hash].key = (char*) key_copy;
-        ht->node[hash].element = element_copy;
+        ht->node[hash].key = strdup(key);
+        ht->node[hash].element = strdup((char*) element);
         ht->num_elements++;
 
         return 1;
