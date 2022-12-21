@@ -357,6 +357,11 @@ void hash_set_resize_low_density(struct hash_table* ht, int fill_factor) {
 }
 
 void destroy_hash_table(HashTable* ht) {
+        for (size_t i = 0; i < ht->size; i++) {
+                free(ht->node[i].key);
+                free(ht->node[i].element);
+        }
+
         free(ht->node);
         free(ht);
 }
