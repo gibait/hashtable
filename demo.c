@@ -7,7 +7,7 @@
    questo caso facente funzione di contatore, ed effettua una insert con
    il valore del contatore incrementato di 1. 
    Per utilizzare il programma devono essere modificati due parametri:
-   - TABLE_SIZE: dimensione inziale della HashTable
+   - TABLE_SIZE: dimensione iniziale della HashTable
    - FILE_NAME: nome del file di cui effettuare la conta delle parole 
 */
 
