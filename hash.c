@@ -26,8 +26,9 @@ typedef enum {false, true} Boolean;
 
 size_t hash_value_FNV1a(HashTable* ht, char* key) {
     size_t hash = FNV_OFFSET;
+    const char* p;
 
-    for (const char* p = key; *p; p++) {
+    for (p = key; *p; p++) {
         hash ^= (size_t)(unsigned char)(*p);
         hash *= FNV_PRIME;
     }
@@ -61,7 +62,7 @@ size_t hash_value_djb2(HashTable* ht, char* key) {
 #define TABLE_MIN_LOAD 30
 
 HashTable* create_hash_table(size_t size) {
-        HashTable *ht;
+        HashTable* ht;
         
         // Controllo che la dimensione non sia troppo grande
         // e quindi faccia overflow
@@ -503,11 +504,14 @@ void pretty_print(HashTable* ht) {
         size_t i;
         
         printf("\n\n");
-        printf("\tindex\t|\tkey\t|\telement\n");
+        printf("    index\t\t key\t\t element\t \n\n");
         for (i = 0; i < ht->size; i++) {
-                printf("\t%lu\t|\t%s\t|\t%s\n", i, 
+                if (ht->node[i].key != NULL) {
+                        printf("    %-10lu\t\t %-12s\t\t %8s\t \n\n",
+                               i,
                                 ht->node[i].key,
                                 (char*) ht->node[i].element);
+                }
         }
         printf("\n\n");
 }

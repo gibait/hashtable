@@ -34,7 +34,7 @@ HashTable* create_hash_table(size_t size);
 int hash_insert(HashTable* ht, char* key, void* element);
 
 /* Retrive the element, with the given key, to the given hash table.
- * Return void pointer which should be casted to whatever the element
+ * Return void pointer which should be cast to whatever the element
  * originally was or NULL in case of failure */
 void* hash_get(HashTable* ht, char* key);
 
