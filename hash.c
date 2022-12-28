@@ -142,10 +142,20 @@ static int insert(Node* node, size_t hash, char* key, void* element, size_t ht_s
 
         return 1;
 }
+
+/*
+ * Questa funzione viene chiamata quando la dimensione della HashTable
+ * supera il limite fissato. Raddoppia le dimensioni della stessa
+ * ed effettua una copia dei nodi inserendoli con hash aggiornato alle
+ * nuove dimensioni.
+ */
 Boolean hash_expand(HashTable* ht) {
-        HashTable* expanded;
+        Node* copy;
         size_t doubled;
         size_t i;
+        size_t hash;
+        size_t original_size = ht->size;
+
 
         // Raddoppio le dimensioni della HashTable attuale
         // e controllo che non siano troppo grandi
@@ -154,26 +164,98 @@ Boolean hash_expand(HashTable* ht) {
                 return false;
         }
 
-        // Creo una HashTable temporanea di dimensioni doppie
-        expanded = create_hash_table(doubled);
-        if (expanded == NULL) {
+        // Alloco un nuovo array di nodi con dimensione doppia
+        copy = calloc(doubled, sizeof(Node));
+        if (copy == NULL) {
+                return false;
+        }
+
+        // Assegno la nuova dimensione alla HashTable
+        // (necessario per utilizzare correttamente la funzione di hash)
+        ht->size = doubled;
+
+        // Resetto il numero di elementi
+        ht->num_elements = 0;
+
+        // Inserisco nodo per nodo quelli non nulli all'interno del
+        // nuovo array di dimensioni raddoppiate, utilizzando la funzione
+        // d'insert, e libero la memoria allocata per i nodi originali.
+        for (i = 0; i < original_size; i++) {
+                if (ht->node[i].key != NULL) {
+                        hash = hash_value(ht, ht->node[i].key);
+                        if (insert(copy,
+                                        hash, 
+                                        ht->node[i].key, 
+                                        ht->node[i].element, 
+                                        ht->size) == 1) {
+                                ht->num_elements++;
+                        }
+                        free(ht->node[i].key);
+                        free(ht->node[i].element);
+                }
+        }
+        // Assegno l'array di nodi raddoppiati alla HashTable
+        free(ht->node);
+        ht->node = copy;
+
+        return true;
+}
+
+/*
+ * Questa funzione viene chiamata quando la dimensione della HashTable
+ * cala sotto il limite fissato. Dimezza le dimensioni della stessa
+ * ed effettua una copia dei nodi inserendoli con hash aggiornato alle
+ * nuove dimensioni.
+ */
+Boolean hash_shrink(HashTable* ht) {
+        Node* copy;
+        size_t half;
+        size_t i;
+        size_t hash;
+        size_t original_size = ht->size;
+
+
+        // Raddoppio le dimensioni della HashTable attuale
+        // e controllo che non siano troppo piccole
+        half = ht->size / 2;
+        if (half < 1) {
+                return false;
+        }
+
+        // Alloco un nuovo array di nodi con dimensione dimezzata
+        copy = calloc(half, sizeof(Node));
+        if (copy == NULL) {
                 return false;
         }
         
-        // Procedo ad inserire tutti gli elementi della HashTable originale
-        // in quella di dimensioni raddoppiate, così facendo gli hash verranno
-        // calcolati sulla base delle nuove dimensioni
-        for (i = 0; i < ht->size; i++) {  
+        // Assegno la nuova dimensione alla HashTable
+        // (necessario per utilizzare correttamente la funzione di hash)
+        ht->size = half;
+
+        // Resetto il numero di elementi
+        ht->num_elements = 0;
+
+        // Inserisco nodo per nodo quelli non nulli all'interno del
+        // nuovo array di dimensioni dimezzate, utilizzando la funzione
+        // d'insert, e libero la memoria allocata per i nodi originali.
+        for (i = 0; i < original_size; i++) {
                 if (ht->node[i].key != NULL) {
-                        hash_insert(expanded, 
+                        hash = hash_value(ht, ht->node[i].key);
+                        if (insert(copy,
+                                   hash,
                                 ht->node[i].key, 
-                                ht->node[i].element);
+                                   ht->node[i].element,
+                                   ht->size) == 1) {
+                                ht->num_elements++;
+                        }
+                        free(ht->node[i].key);
+                        free(ht->node[i].element);
                 }
         }
+        // Assegno l'array di nodi dimezzati alla HashTable
+        free(ht->node);
+        ht->node = copy;
 
-        // Procedo a copiare la memoria puntata dalla neontata HashTable
-        // alla locazione di memoria originariamente puntata da ht
-        memcpy(ht, expanded, sizeof(HashTable));
         return true;
 }
 
@@ -321,7 +403,17 @@ void* hash_remove(HashTable* ht, char* key) {
         size_t hash;
         size_t prober;
         size_t counter = 0;
+
         wrlock(&ht->lock);
+
+        if ((int) (ht->num_elements*100/ht->size) <= ht->low_density) {
+                LOG(("HashTable troppo GRANDE, devo ridimensionare!\n"));
+
+                if (hash_shrink(ht)) {
+                        LOG(("HashTable rimpicciolita! Nuova dimensione: "
+                             "%ld\n", ht->size));
+                }
+        }
         
         // Computo l'hash della chiave data
         hash = hash_value(ht, key);
