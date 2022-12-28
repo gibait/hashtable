@@ -10,3 +10,5 @@ all: $(TAR)
 %: %.c
 	$(CC) $(CFLAG)  $< -o $@.o -lpthread -g
 
+clean:
+	rm -fr *.o
