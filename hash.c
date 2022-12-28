@@ -97,6 +97,48 @@ HashTable* create_hash_table(size_t size) {
         return ht;
 }
 
+/*
+ * Questa funzione viene utilizzata per l'inserimento linear probing
+ * dei nodi all'interno della HashTable. Non è protetta da mutex perché
+ * viene chiamata da una funziona essa stessa protetta da mutex.
+ */
+static int insert(Node* node, size_t hash, char* key, void* element, size_t ht_size) {
+        // Inizio ciclando sul nodo fornito all'indice dato dal digest
+        while (node[hash].key != NULL) {
+                // Qualora non sia vuoto confronto la chiave presente con 
+                // quella fornita
+                if (strcmp(key, node[hash].key) == 0) {
+                        // Se la chiave combacia non si tratta di una
+                        // collisione bensì di un tentativo di sovrascrittura
+                        LOG(("Updating '%s' (at %ld) with %s element\n",
+                                        key, hash, (char*) element));
+                        node[hash].element = strdup((char*) element);
+                        return 0;
+                }
+                // Nel caso in cui le chiavi non combacino si tratta di una
+                // collisione. Procedo con il linear probing: incremento 
+                // l'indice e mi sposto a destra di una posizione fino a che 
+                // non trovo un nodo NULL che termini il ciclo
+                hash++;
+                if (hash == ht_size) {
+                        // Nel caso in abbia raggiunto il limite imposto
+                        // dalle dimensioni della struttura, riparto da 0
+                        // trattando l'array come circolare
+                        hash = 0;
+                }
+        }
+
+        // All'uscita del ciclo ho il valore dell'indice che punta al primo
+        // nodo non NULL, motivo per il quale posso procedere a inserire i 
+        // dati che sono stati forniti dall'utente
+        LOG(("Inserting %s (at %ld) with '%s' key\n", 
+                (char*) element, hash, key));
+        // Effettuo una copia del valore contenuto all'interno del puntatore
+        node[hash].key = strdup(key);
+        node[hash].element = strdup((char*) element);
+
+        return 1;
+}
 Boolean hash_expand(HashTable* ht) {
         HashTable* expanded;
         size_t doubled;
@@ -132,10 +174,16 @@ Boolean hash_expand(HashTable* ht) {
         return true;
 }
 
-int hash_insert(HashTable* ht, char *key, void* element) {
+/*
+ * Questa funzione agisce da wrapper della funzione d'inserimento.
+ * Controlla che la chiave e l'elemento non siano nulli, in caso
+ * contrario ritorna -1; controlla che la dimensione della HashTable
+ * non superi il limite superiore fissato, ridimensionandola in tal caso;
+ * e utilizza la write lock per effettuare l'inserimento.
+ */
+int hash_insert(HashTable* ht, char* key, void* element) {
         size_t hash;
-        char* key_copy;
-        void* element_copy;
+        int retr;
         
         // Controllo che chiave ed elemento non siano nulli
         if (key == NULL || element == NULL) {
@@ -145,7 +193,9 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         // Verifico che il numero di nodi all'interno della HashTable non
         // superi il valore di densità superiore stabilito. In caso contrario
         // procedo ad espandere la HashTable raddoppiandone le dimensioni
-        if ((int) (ht->num_elements/ht->size)*100 >= ht->high_density) {
+        if ((int) (ht->num_elements*100/ht->size) >= ht->high_density) {
+                LOG(("HashTable troppo PICCOLA, devo ridimensionare!\n"));
+                
                 if (hash_expand(ht)) {
                         LOG(("HashTable espansa! Nuova dimensione: %ld\n", 
                                 ht->size));
@@ -156,42 +206,16 @@ int hash_insert(HashTable* ht, char *key, void* element) {
         hash = hash_value(ht, key);
         LOG(("Key: %s --> Digest: %lu\n", key, hash));
         
-        // Inizio ciclando sul nodo fornito all'indice dato dal digest
-        while (ht->node[hash].key != NULL) {
-                // Qualora non sia vuoto confronto la chiave presente con 
-                // quella fornita
-                if (strcmp(key, ht->node[hash].key) == 0) {
-                        // Se la chiave combacia non si tratta di una
-                        // collisione bensì di un tentativo di sovrascrittura
-                        LOG(("Updating '%s' (at %ld) with %s element\n",
-                                        key, hash, (char*) element));
-                        ht->node[hash].element = strdup((char*) element);
-                        return 0;
-                }
-                // Nel caso in cui le chiavi non combacino si tratta di una
-                // collisione. Procedo con il linear probing: incremento 
-                // l'indice e mi sposto a destra di una posizione fino a che 
-                // non trovo un nodo NULL che termini il ciclo
-                hash++;
-                if (hash == ht->size) {
-                        // Nel caso in abbia raggiunto il limite imposto
-                        // dalle dimensioni della struttura, riparto da 0
-                        // trattando l'array come circolare
-                        hash = 0;
-                }
+        // Utilizzo la funzione d'inserimento e controllo il valore restituito.
+        retr = insert(ht->node, hash, key, element, ht->size);
+        if (retr == 1) {
+                // Nel caso in cui sia uno, cioè di nuova chiave,
+                // incremento il numero di elementi della HashTable
+        ht->num_elements++;
         }
 
-        // All'uscita del ciclo ho il valore dell'indice che punta al primo
-        // nodo non NULL, motivo per il quale posso procedere a inserire i 
-        // dati che sono stati forniti dall'utente
-        LOG(("Inserting %s (at %ld) with '%s' key\n", 
-                (char*) element, hash, key));
-        // Effettuo una copia del valore contenuto all'interno del puntatore
-        ht->node[hash].key = strdup(key);
-        ht->node[hash].element = strdup((char*) element);
-        ht->num_elements++;
-
-        return 1;
+        // Ritorno il valore restituito dall'inserimento
+        return retr;
 }
 
 void* hash_get(HashTable* ht, char* key) {
