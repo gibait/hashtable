@@ -2,6 +2,7 @@
 #define _HASH_TABLE_H
 
 #include <stddef.h>
+#include <pthread.h>
 
 /* HashTable entries
  * contains a key which is used to index the hash table
@@ -20,6 +21,7 @@ typedef struct hash_table {
         size_t num_elements;
         int high_density;
         int low_density;
+        pthread_rwlock_t lock;
 } HashTable;
 
 
