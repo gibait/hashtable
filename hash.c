@@ -12,8 +12,9 @@
 
 typedef enum {false, true} Boolean;
 
-#define lock pthread_mutex_lock
-#define unlock pthread_mutex_unlock
+#define rdlock pthread_rwlock_rdlock
+#define wrlock pthread_rwlock_wrlock
+#define rwlunlock pthread_rwlock_unlock
 
 // Di seguito sono definite alcune funzioni di hashing diverse.
 // Viene utilizzata quella indicata con il define
@@ -88,6 +89,8 @@ HashTable* create_hash_table(size_t size) {
                 perror("Errore durante l'allocazione dei nodi");
                 return NULL;
         }
+
+        pthread_rwlock_init(&ht->lock, NULL);
 
         ht->size = size;
         ht->num_elements = 0;
@@ -190,6 +193,9 @@ int hash_insert(HashTable* ht, char* key, void* element) {
                 return -1;
         }
 
+        // Acquisisco il lock per la scrittura
+        wrlock(&ht->lock);
+
         // Verifico che il numero di nodi all'interno della HashTable non
         // superi il valore di densità superiore stabilito. In caso contrario
         // procedo ad espandere la HashTable raddoppiandone le dimensioni
@@ -214,6 +220,8 @@ int hash_insert(HashTable* ht, char* key, void* element) {
         ht->num_elements++;
         }
 
+        // Rilascio il lock
+        rwlunlock(&ht->lock);
         // Ritorno il valore restituito dall'inserimento
         return retr;
 }
@@ -232,18 +240,22 @@ void* hash_get(HashTable* ht, char* key) {
         hash = hash_value(ht, key);
 
         LOG(("Sto cercando l'elemento di chiave %s\n", key)); 
+
+        rdlock(&ht->lock);
         // Inizio ciclando sul nodo fornito all'indice dato dal digest
         while (ht->node[hash].key != NULL) {
                 counter++;
                 if (counter == ht->size) {
                         // Controllo di non aver superato la dimensione
                         // della HashTable in iterazioni del ciclo
+                        rwlunlock(&ht->lock);
                         return NULL;
                 }
                 // Qualora non sia vuoto confronto la chiave presente con 
                 // quella fornita
                 if (strcmp(key, ht->node[hash].key) == 0) {
                         LOG(("Trovato alla pos. %lu\n", hash));
+                        rwlunlock(&ht->lock);
                         return ht->node[hash].element;
                 }
                 // Nel caso in cui le chiavi non combacino si tratta di una
@@ -260,6 +272,7 @@ void* hash_get(HashTable* ht, char* key) {
                 //LOG(("Continuo cercando alla pos. %lu\n", hash));
         }
         
+        rwlunlock(&ht->lock);
         // In caso contrario non è stato trovato niente
         return NULL; 
 }
@@ -308,6 +321,7 @@ void* hash_remove(HashTable* ht, char* key) {
         size_t hash;
         size_t prober;
         size_t counter = 0;
+        wrlock(&ht->lock);
         
         // Computo l'hash della chiave data
         hash = hash_value(ht, key);
@@ -333,12 +347,14 @@ void* hash_remove(HashTable* ht, char* key) {
                         if (prober == ht->size) {
                                 prober = 0;
                         }
-                        return _test_nodes(ht, 
-                                        &ht->node[hash], 
-                                        &ht->node[prober]);
+                        _test_nodes(ht, &ht->node[hash], &ht->node[prober]);
+
+                        rwlunlock(&ht->lock);
+                        return &ht->node[hash];
                 }
         }
 
+        rwlunlock(&ht->lock);
         return NULL;
 }
 
