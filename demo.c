@@ -84,7 +84,9 @@ int main(int argc, char* argv[]) {
         while ((read = getline(&buffer, &buffer_size, fp)) != -1) {
                 if (read > 0) {
                         strtok(buffer, "\n");
+                        if (hash_get(ht, buffer) != NULL) {
                         hash_remove(ht, buffer);
+                        }
                 }
         }
 
