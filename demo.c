@@ -23,6 +23,8 @@ void usage(void) {
 
 int main(int argc, char* argv[]) {
         HashTable *ht;
+        size_t buffer_size = 100;
+        char str[buffer_size];
         char* buffer; 
         void* element;
         FILE* fp;
@@ -50,6 +52,11 @@ int main(int argc, char* argv[]) {
                 perror("Errore apertura file");
                 exit(3);
         }
+
+        buffer = malloc(buffer_size * sizeof(char));
+        if (buffer == NULL) {
+                perror("Errore allocazione buffer");
+                exit(4);
         }
 
         fails = 0;
@@ -84,6 +91,7 @@ int main(int argc, char* argv[]) {
         printf("hash_num_elements: %ld\n", hash_num_elements(ht));
 
         destroy_hash_table(ht);
+        free(buffer);
 
         return 0;
 }
