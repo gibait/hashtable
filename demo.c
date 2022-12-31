@@ -11,8 +11,9 @@
    - FILE_NAME: nome del file di cui effettuare la conta delle parole 
 */
 
-
-#include "hash.c"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "hash.h"
 
 #define TABLE_SIZE 1000
