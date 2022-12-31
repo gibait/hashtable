@@ -5,8 +5,8 @@
    per verificare che la parola non sia presente, se così non fosse la 
    aggiunge. Se invece è già presente, salva il valore dell'elemento, in
    questo caso facente funzione di contatore, ed effettua una insert con
-   il valore del contatore incrementato di 1. 
-   Per utilizzare il programma devono essere modificati due parametri:
+   il valore del contatore incrementato di uno.
+   Per utilizzare il programma devono essere passati due parametri:
    - TABLE_SIZE: dimensione iniziale della HashTable
    - FILE_NAME: nome del file di cui effettuare la conta delle parole 
 */
