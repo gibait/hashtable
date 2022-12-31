@@ -8,7 +8,7 @@ TAR = $(SRC:.c=)
 all: $(TAR)
 
 %: %.c
-	$(CC) $(CFLAG)  $< -o $@.o -lpthread -g
+	$(CC) $(CFLAG)  $< -o $@.o -lpthread -g hash.c
 
 clean:
 	rm -fr *.o
