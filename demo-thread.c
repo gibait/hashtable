@@ -9,10 +9,11 @@
    - TABLE_SIZE: dimensione iniziale della HashTable
 */
 
-
-#include "hash.c"
+#include "hash.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
 
 #define N_THREADS 4
 
