@@ -28,8 +28,6 @@ int main(int argc, char* argv[]) {
         char* buffer; 
         void* element;
         FILE* fp;
-        size_t buffer_size = 100;
-        char str[buffer_size];
         int read;
         int fails;
         int counter;
@@ -75,6 +73,13 @@ int main(int argc, char* argv[]) {
                 }
         }
 
+        printf("size after INSERTION: %lu\n", ht->size);
+
+        printf("insertion fails: %d\n", fails);
+        printf("ht->num_elements: %ld\n", ht->num_elements);
+        printf("hash_num_elements: %ld\n", hash_num_elements(ht));
+
+
         rewind(fp);
         while ((read = getline(&buffer, &buffer_size, fp)) != -1) {
                 if (read > 0) {
@@ -83,10 +88,9 @@ int main(int argc, char* argv[]) {
                 }
         }
 
+        printf("\n\n");
+        printf("size after DELETION: %lu\n", ht->size);
 
-        printf("size: %lu\n", ht->size);
-
-        printf("insertion fails: %d\n", fails);
         printf("ht->num_elements: %ld\n", ht->num_elements);
         printf("hash_num_elements: %ld\n", hash_num_elements(ht));
 
