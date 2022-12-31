@@ -16,10 +16,12 @@
 #include <string.h>
 #include "hash.h"
 
-#define TABLE_SIZE 1000
-#define FILE_NAME "words.txt"
+void usage(void) {
+        printf("usage: demo [TABLE_SIZE] [FILE_NAME]\n");
+}
 
-int main(void) {
+
+int main(int argc, char* argv[]) {
         HashTable *ht;
         char* buffer; 
         void* element;
@@ -30,15 +32,24 @@ int main(void) {
         int fails;
         int counter;
 
-        ht = create_hash_table(TABLE_SIZE);
+        if (argc != 3) {
+                usage();
+                perror("Numero di parametri errato");
+                exit(1);
+        }
+
+        ht = create_hash_table(atoi(argv[1]));
         if (ht == NULL) {
-                exit(3);
+                usage();
+                exit(2);
         }
                 
-        fp = fopen(FILE_NAME, "r");
+        fp = fopen(argv[2], "r");
         if (fp == NULL) {
+                usage();
                 perror("Errore apertura file");
-                exit(1);
+                exit(3);
+        }
         }
 
         fails = 0;
