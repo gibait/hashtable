@@ -63,6 +63,7 @@ size_t hash_value_djb2(HashTable* ht, char* key) {
 
 HashTable* create_hash_table(size_t size) {
         HashTable* ht;
+        size_t i;
         
         // Controllo che la dimensione non sia troppo grande
         // e quindi faccia overflow
@@ -91,8 +92,16 @@ HashTable* create_hash_table(size_t size) {
                 return NULL;
         }
 
+        // Inizializzo i nodi
+        for (i = 0; i < size; i++) {
+                ht->node[i].key = NULL;
+                ht->node[i].element = EMPTY;
+        }
+
+        // Inizializzo il lock
         pthread_rwlock_init(&ht->lock, NULL);
 
+        // Inizializzo gli altri membri della struct
         ht->size = size;
         ht->num_elements = 0;
         ht->high_density = TABLE_MAX_LOAD;
@@ -102,46 +111,76 @@ HashTable* create_hash_table(size_t size) {
 }
 
 /*
- * Questa funzione viene utilizzata per l'inserimento linear probing
- * dei nodi all'interno della HashTable. Non è protetta da mutex perché
- * viene chiamata da una funziona essa stessa protetta da mutex.
+ * Questa funzione è il cuore dell'intera HashTable: utilizza il meccanismo
+ * di LINEAR PROBING per trovare un nodo non NULL, spostandosi a destra di
+ * una posizione ogni volta che ne incontra uno.
  */
-static int insert(Node* node, size_t hash, char* key, void* element, size_t ht_size) {
-        // Inizio ciclando sul nodo fornito all'indice dato dal digest
-        while (node[hash].key != NULL) {
+static
+Node* find_node(Node* node, size_t hash, char* key, size_t ht_size) {
+        Node* found = NULL;
+        size_t counter = 0;
+
+        for (; counter < ht_size; counter++, hash = (hash + 1) % ht_size) {
+                // Controllo che il nodo non sia NULL
+                if (node[hash].key == NULL) {
+                        if (node[hash].element == EMPTY) {
+                                // Se l'elemento è EMPTY allora è libero
+                                // per l'assegnazione
+                                return found != NULL ? found : &node[hash];
+                        }
+                        // Altrimenti il nodo è una TOMBSTONE, cioè un nodo
+                        // rimosso in precedenza
+                        if (found == NULL) {
+                                // Lo salviamo per il caso in cui questa
+                                // funzione venga usata da hash_insert,
+                                // cioè per la ricerca di un nodo NULL
+                                found = &node[hash];
+                        }
+                        continue;
+                }
+
                 // Qualora non sia vuoto confronto la chiave presente con 
                 // quella fornita
                 if (strcmp(key, node[hash].key) == 0) {
-                        // Se la chiave combacia non si tratta di una
-                        // collisione bensì di un tentativo di sovrascrittura
-                        LOG(("Updating '%s' (at %ld) with %s element\n",
-                                        key, hash, (char*) element));
-                        node[hash].element = strdup((char*) element);
-                        return 0;
+                        LOG(("Trovato alla pos. %lu\n", hash));
+                        return &node[hash];
                 }
-                // Nel caso in cui le chiavi non combacino si tratta di una
-                // collisione. Procedo con il linear probing: incremento 
-                // l'indice e mi sposto a destra di una posizione fino a che 
-                // non trovo un nodo NULL che termini il ciclo
-                hash++;
-                if (hash == ht_size) {
-                        // Nel caso in abbia raggiunto il limite imposto
-                        // dalle dimensioni della struttura, riparto da 0
-                        // trattando l'array come circolare
-                        hash = 0;
                 }
+
+        // Nel caso in cui il ciclo sopra termini significa che non è
+        // presente l'elemento all'interno della HashTable
+        return NULL;
         }
 
-        // All'uscita del ciclo ho il valore dell'indice che punta al primo
-        // nodo non NULL, motivo per il quale posso procedere a inserire i 
-        // dati che sono stati forniti dall'utente
-        LOG(("Inserting %s (at %ld) with '%s' key\n", 
-                (char*) element, hash, key));
-        // Effettuo una copia del valore contenuto all'interno del puntatore
-        node[hash].key = strdup(key);
-        node[hash].element = strdup((char*) element);
+static
+int insert(Node* node, size_t hash, char* key, void* element, size_t ht_size) {
+        size_t counter = 0;
 
+        for (; counter < ht_size; counter++, hash = (hash + 1) % ht_size) {
+                if (node[hash].key == NULL) {
+                        // Se il nodo è NULL o la chiave è NULL lo tratto
+                        // come EMPTY e inscrivo i valori
+        LOG(("Inserting %s (at %ld) with '%s' key\n", 
+                                (char *) element, hash, key));
+                        // Effettuo una copia del valore contenuto
+                        // all'interno del puntatore
+                        free(node[hash].key);
+                        free(node[hash].element);
+        node[hash].key = strdup(key);
+                        node[hash].element = strdup(element);
         return 1;
+}
+                if (strcmp(key, node[hash].key) == 0) {
+                        // Se il nodo è popolato si tratta di un tentativo
+                        // di sovrascrittura
+                        LOG(("Updating '%s' (at %ld) with %s element\n",
+                                key, hash, (char *) element));
+                        free(node[hash].element);
+                        node[hash].element = strdup(element);
+                        return 0;
+                }
+        }
+        return -1;
 }
 
 /*
@@ -150,6 +189,7 @@ static int insert(Node* node, size_t hash, char* key, void* element, size_t ht_s
  * ed effettua una copia dei nodi inserendoli con hash aggiornato alle
  * nuove dimensioni.
  */
+static
 Boolean hash_expand(HashTable* ht) {
         Node* copy;
         size_t doubled;
@@ -169,6 +209,11 @@ Boolean hash_expand(HashTable* ht) {
         copy = calloc(doubled, sizeof(Node));
         if (copy == NULL) {
                 return false;
+        }
+
+        for (i = 0; i < doubled; i++) {
+                copy[i].key = NULL;
+                copy[i].element = EMPTY;
         }
 
         // Assegno la nuova dimensione alla HashTable
@@ -208,6 +253,7 @@ Boolean hash_expand(HashTable* ht) {
  * ed effettua una copia dei nodi inserendoli con hash aggiornato alle
  * nuove dimensioni.
  */
+static
 Boolean hash_shrink(HashTable* ht) {
         Node* copy;
         size_t half;
@@ -229,6 +275,11 @@ Boolean hash_shrink(HashTable* ht) {
                 return false;
         }
         
+        for (i = 0; i < half; i++) {
+                copy[i].key = NULL;
+                copy[i].element = EMPTY;
+        }
+
         // Assegno la nuova dimensione alla HashTable
         // (necessario per utilizzare correttamente la funzione di hash)
         ht->size = half;
@@ -271,6 +322,7 @@ int hash_insert(HashTable* ht, char* key, void* element) {
         size_t hash;
         int retr;
         
+
         // Controllo che chiave ed elemento non siano nulli
         if (key == NULL || element == NULL) {
                 return -1;
@@ -281,7 +333,7 @@ int hash_insert(HashTable* ht, char* key, void* element) {
 
         // Verifico che il numero di nodi all'interno della HashTable non
         // superi il valore di densità superiore stabilito. In caso contrario
-        // procedo ad espandere la HashTable raddoppiandone le dimensioni
+        // procedo a espandere la HashTable raddoppiandone le dimensioni
         if ((int) (ht->num_elements*100/ht->size) >= ht->high_density) {
                 LOG(("HashTable troppo PICCOLA, devo ridimensionare!\n"));
                 
@@ -295,7 +347,7 @@ int hash_insert(HashTable* ht, char* key, void* element) {
         hash = hash_value(ht, key);
         LOG(("Key: %s --> Digest: %lu\n", key, hash));
         
-        // Utilizzo la funzione d'inserimento e controllo il valore restituito.
+        // Utilizzo la funzione d'inserimento e controllo il valore restituito
         retr = insert(ht->node, hash, key, element, ht->size);
         if (retr == 1) {
                 // Nel caso in cui sia uno, cioè di nuova chiave,
@@ -310,12 +362,16 @@ int hash_insert(HashTable* ht, char* key, void* element) {
 }
 
 void* hash_get(HashTable* ht, char* key) {
+        Node* found;
         size_t hash;
-        size_t counter = 0;
+
+        // Acquisisco il lock
+        rdlock(&ht->lock);
 
         // Controllo che il numero di elementi sia > 1 
         // così da evitare il blocco di codice seguente
         if (ht->num_elements == 0) {
+                rwlunlock(&ht->lock);
                 return NULL;
         }
         
@@ -324,89 +380,42 @@ void* hash_get(HashTable* ht, char* key) {
 
         LOG(("Sto cercando l'elemento di chiave %s\n", key)); 
 
-        rdlock(&ht->lock);
-        // Inizio ciclando sul nodo fornito all'indice dato dal digest
-        while (ht->node[hash].key != NULL) {
-                counter++;
-                if (counter == ht->size) {
-                        // Controllo di non aver superato la dimensione
-                        // della HashTable in iterazioni del ciclo
-                        rwlunlock(&ht->lock);
-                        return NULL;
-                }
-                // Qualora non sia vuoto confronto la chiave presente con 
-                // quella fornita
-                if (strcmp(key, ht->node[hash].key) == 0) {
-                        LOG(("Trovato alla pos. %lu\n", hash));
-                        rwlunlock(&ht->lock);
-                        return ht->node[hash].element;
-                }
-                // Nel caso in cui le chiavi non combacino si tratta di una
-                // collisione. Procedo con il linear probing: incremento 
-                // l'indice e mi sposto a destra di una posizione fino a che 
-                // non trovo un nodo NULL che termini il ciclo
-                hash++;
-                if (hash == ht->size) {
-                        // Nel caso in abbia raggiunto il limite imposto
-                        // dalle dimensioni della struttura, riparto da 0
-                        // trattando l'array come circolare
-                        hash = 0;
-                }
-                //LOG(("Continuo cercando alla pos. %lu\n", hash));
-        }
+        // Cerco il nodo indicato
+        found = find_node(ht->node, hash, key, ht->size);
         
+        // Rilascio il lock
         rwlunlock(&ht->lock);
-        // In caso contrario non è stato trovato niente
+
+        // Il nodo risulta vuoto nel caso in cui la chiave sia NULL oppure
+        // il nodo stesso. In caso contrario viene il nodo è popolato e
+        // restituisco l'elemento
+        if (found == NULL) {
         return NULL; 
 }
-
-void* _test_nodes(HashTable* ht, Node* n1, Node *n2) {
-        size_t h1, h2;
-        
-        h1 = hash_value(ht, n1->key);
-        if (n2->key == NULL) {
-
-                LOG(("Nodo NULL alla posizione successiva\n"));
-                n1->key = NULL;
-                n1->element = NULL;
-                
-                return n1;
-        }
-
-        h2 = hash_value(ht, n2->key);
-
-        LOG(("Testing per lo switch di %s e %s\n", n1->key, n2->key));
-        // Viene confrontato l'hash per appurare l'avvenuta collisione
-        if (h1 == h2) {
-                // In caso collidano si effettua lo switch
-                // dal nodo n2 verso quello n1
-                LOG(("Trovati due nodi compatibili per lo switch\n"));
-                n1->key = n2->key;
-                n1->element = n2->element;
-                
-                // Viene pulito il nodo n2
-                LOG(("Procedo con l'eliminazione\n"));
-                n2->key = NULL;
-                n2->element = NULL;
+        if (found->key == NULL) {
+                return NULL;
         } else {
-                // In caso contrario viene semplicemente
-                // pulito il nodo n1
-                n1->key = NULL;
-                n1->element = NULL;
+                return found->element;
         }
-
-        // In entrambi i casi viene ritornato il nodo
-        // di cui era stata chiesta la rimozione
-        return n1;
 }
 
 void* hash_remove(HashTable* ht, char* key) {
+        Node* found;
         size_t hash;
-        size_t prober;
-        size_t counter = 0;
 
+        // Acquisisco il lock
         wrlock(&ht->lock);
 
+        // Se il numero di elementi è 0 non vi sono nodi da rimuovere
+        if (ht->num_elements < 1) {
+                rwlunlock(&ht->lock);
+                return NULL;
+        }
+
+        // Verifico che il numero di nodi all'interno della HashTable non
+        // sia al di sotto del valore di densità superiore stabilito.
+        // In caso contrario procedo a espandere la HashTable dimezzandone
+        // le dimensioni
         if ((int) (ht->num_elements*100/ht->size) <= ht->low_density) {
                 LOG(("HashTable troppo GRANDE, devo ridimensionare!\n"));
 
@@ -420,33 +429,31 @@ void* hash_remove(HashTable* ht, char* key) {
         hash = hash_value(ht, key);
         LOG(("Inizio la rimozione dell'elemento con chiave: %lu\n", hash));
         
-        for (; counter < ht->size; counter++, hash = (hash + 1) % ht->size) {
-                // Controllo che all'indice indicato dal digest 
-                // il nodo non sia NULL
-                if (ht->node[hash].key == NULL) {
-                        continue;
+        // Cerco il nodo indicato
+        found = find_node(ht->node, hash, key, ht->size);
+
+        // Il nodo risulta vuoto nel caso in cui la chiave oppure
+        // il nodo stesso sia NULL. In caso contrario il nodo è popolato e
+        // procedo a rimuoverlo e decrementare il numero di elementi
+        if (found == NULL) {
+                rwlunlock(&ht->lock);
+                return NULL;
                 }
-                // Nel caso in cui la condizione precedente sia soddisfatta
-                // procedo comparando le chiavi
-                if (strcmp(key, ht->node[hash].key) == 0) {
-                        LOG(("Trovato nodo alla posizione indicata\n"));
+        if (found->key != NULL) {
                         // Decremento il numero di elementi
                         ht->num_elements--;
-                        // Prima di procedere con l'eliminazione faccio il
-                        // probing del nodo alla posizione successiva. In
-                        // questo modo cerco di tenere la HashTable il più
-                        // libera possibile
-                        prober = hash + 1;
-                        if (prober == ht->size) {
-                                prober = 0;
-                        }
-                        _test_nodes(ht, &ht->node[hash], &ht->node[prober]);
+                free(found->key);
+                free(found->element);
+                // Pongo la chiave NULL e l'elemento a TOMBSTONE
+                found->key = NULL;
+                found->element = TOMBSTONE;
 
+                // Rilascio il lock
                         rwlunlock(&ht->lock);
-                        return &ht->node[hash];
-                }
+                return found;
         }
 
+        // Rilascio il lock
         rwlunlock(&ht->lock);
         return NULL;
 }
@@ -492,8 +499,10 @@ void hash_set_resize_low_density(struct hash_table* ht, int fill_factor) {
 
 void destroy_hash_table(HashTable* ht) {
         for (size_t i = 0; i < ht->size; i++) {
+                if (ht->node[i].key != NULL) {
                 free(ht->node[i].key);
                 free(ht->node[i].element);
+                }
         }
 
         free(ht->node);

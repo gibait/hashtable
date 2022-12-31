@@ -63,5 +63,7 @@ void hash_set_resize_high_density(struct hash_table* ht, int fill_factor);
    The fill factor is a number between 1 and 100.*/
 void hash_set_resize_low_density(struct hash_table* ht, int fill_factor);
 
+#define EMPTY (void*) 0x00
+#define TOMBSTONE (void*) 0x01
 
 #endif // _HASH_TABLE_H
