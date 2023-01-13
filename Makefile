@@ -2,7 +2,7 @@
 CC=gcc
 #parametro utilizzato dal compilatore C
 CFLAG=-Wall -Wextra -Werror -pedantic
-SRC = $(wildcard *.c)
+SRC = $(filter-out hash.c, $(wildcard *.c))
 TAR = $(SRC:.c=)
 
 all: $(TAR)
