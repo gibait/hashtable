@@ -11,7 +11,7 @@
    - N_THREADS: numero di thread
 */
 
-#include "hash.h"
+#include "../lib/hash.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "hash.h"
+#include "../lib/hash.h"
 
 void usage(void) {
         printf("usage: demo [TABLE_SIZE] [FILE_NAME]\n");
