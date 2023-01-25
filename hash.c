@@ -26,11 +26,11 @@ typedef enum {false, true} Boolean;
 
 size_t hash_value_FNV1a(HashTable* ht, char* key) {
     size_t hash = FNV_OFFSET;
-    const char* p;
+    char* p;
 
     for (p = key; *p; p++) {
-        hash ^= (size_t)(unsigned char)(*p);
         hash *= FNV_PRIME;
+        hash ^= (size_t)(unsigned char)(*p);
     }
 
     return hash % ht->size;
@@ -48,7 +48,7 @@ size_t hash_value_sdbm(HashTable* ht, char* key) {
 }
 
 size_t hash_value_djb2(HashTable* ht, char* key) {
-        size_t hash = 0;
+        size_t hash = 5381;
         size_t counter;
 
         for (counter = 0; key[counter] != '\0'; counter++) {
@@ -64,7 +64,7 @@ size_t hash_value_djb2(HashTable* ht, char* key) {
 HashTable* create_hash_table(size_t size) {
         HashTable* ht;
         size_t i;
-        
+
         // Controllo che la dimensione non sia troppo grande
         // e quindi faccia overflow
         if (size + size < size) {
@@ -139,18 +139,18 @@ Node* find_node(Node* node, size_t hash, char* key, size_t ht_size) {
                         continue;
                 }
 
-                // Qualora non sia vuoto confronto la chiave presente con 
+                // Qualora non sia vuoto confronto la chiave presente con
                 // quella fornita
                 if (strcmp(key, node[hash].key) == 0) {
                         LOG(("Trovato alla pos. %lu\n", hash));
                         return &node[hash];
                 }
-                }
+        }
 
         // Nel caso in cui il ciclo sopra termini significa che non è
         // presente l'elemento all'interno della HashTable
         return NULL;
-        }
+}
 
 static
 int insert(Node* node, size_t hash, char* key, void* element, size_t ht_size) {
@@ -160,16 +160,14 @@ int insert(Node* node, size_t hash, char* key, void* element, size_t ht_size) {
                 if (node[hash].key == NULL) {
                         // Se il nodo è NULL o la chiave è NULL lo tratto
                         // come EMPTY e inscrivo i valori
-        LOG(("Inserting %s (at %ld) with '%s' key\n", 
+                        LOG(("Inserting %s (at %ld) with '%s' key\n",
                                 (char *) element, hash, key));
                         // Effettuo una copia del valore contenuto
                         // all'interno del puntatore
-                        free(node[hash].key);
-                        free(node[hash].element);
-        node[hash].key = strdup(key);
+                        node[hash].key = strdup(key);
                         node[hash].element = strdup(element);
-        return 1;
-}
+                        return 1;
+                }
                 if (strcmp(key, node[hash].key) == 0) {
                         // Se il nodo è popolato si tratta di un tentativo
                         // di sovrascrittura
@@ -230,10 +228,10 @@ Boolean hash_expand(HashTable* ht) {
                 if (ht->node[i].key != NULL) {
                         hash = hash_value(ht, ht->node[i].key);
                         if (insert(copy,
-                                        hash, 
-                                        ht->node[i].key, 
-                                        ht->node[i].element, 
-                                        ht->size) == 1) {
+                                   hash,
+                                   ht->node[i].key,
+                                   ht->node[i].element,
+                                   ht->size) == 1) {
                                 ht->num_elements++;
                         }
                         free(ht->node[i].key);
@@ -274,7 +272,7 @@ Boolean hash_shrink(HashTable* ht) {
         if (copy == NULL) {
                 return false;
         }
-        
+
         for (i = 0; i < half; i++) {
                 copy[i].key = NULL;
                 copy[i].element = EMPTY;
@@ -295,7 +293,7 @@ Boolean hash_shrink(HashTable* ht) {
                         hash = hash_value(ht, ht->node[i].key);
                         if (insert(copy,
                                    hash,
-                                ht->node[i].key, 
+                                   ht->node[i].key,
                                    ht->node[i].element,
                                    ht->size) == 1) {
                                 ht->num_elements++;
@@ -321,7 +319,7 @@ Boolean hash_shrink(HashTable* ht) {
 int hash_insert(HashTable* ht, char* key, void* element) {
         size_t hash;
         int retr;
-        
+
 
         // Controllo che chiave ed elemento non siano nulli
         if (key == NULL || element == NULL) {
@@ -340,9 +338,9 @@ int hash_insert(HashTable* ht, char* key, void* element) {
                 if (hash_expand(ht)) {
                         LOG(("HashTable espansa! Nuova dimensione: %ld\n", 
                                 ht->size));
+                }
         }
-        }
-        
+
         // Computo il digest della chiave data
         hash = hash_value(ht, key);
         LOG(("Key: %s --> Digest: %lu\n", key, hash));
@@ -352,7 +350,7 @@ int hash_insert(HashTable* ht, char* key, void* element) {
         if (retr == 1) {
                 // Nel caso in cui sia uno, cioè di nuova chiave,
                 // incremento il numero di elementi della HashTable
-        ht->num_elements++;
+                ht->num_elements++;
         }
 
         // Rilascio il lock
@@ -374,15 +372,14 @@ void* hash_get(HashTable* ht, char* key) {
                 rwlunlock(&ht->lock);
                 return NULL;
         }
-        
+
         // Viene computato il digest della chiave fornita
         hash = hash_value(ht, key);
-
         LOG(("Sto cercando l'elemento di chiave %s\n", key)); 
 
         // Cerco il nodo indicato
         found = find_node(ht->node, hash, key, ht->size);
-        
+
         // Rilascio il lock
         rwlunlock(&ht->lock);
 
@@ -390,8 +387,8 @@ void* hash_get(HashTable* ht, char* key) {
         // il nodo stesso. In caso contrario viene il nodo è popolato e
         // restituisco l'elemento
         if (found == NULL) {
-        return NULL; 
-}
+                return NULL;
+        }
         if (found->key == NULL) {
                 return NULL;
         } else {
@@ -428,7 +425,7 @@ void* hash_remove(HashTable* ht, char* key) {
         // Computo l'hash della chiave data
         hash = hash_value(ht, key);
         LOG(("Inizio la rimozione dell'elemento con chiave: %lu\n", hash));
-        
+
         // Cerco il nodo indicato
         found = find_node(ht->node, hash, key, ht->size);
 
@@ -438,10 +435,10 @@ void* hash_remove(HashTable* ht, char* key) {
         if (found == NULL) {
                 rwlunlock(&ht->lock);
                 return NULL;
-                }
+        }
         if (found->key != NULL) {
-                        // Decremento il numero di elementi
-                        ht->num_elements--;
+                // Decremento il numero di elementi
+                ht->num_elements--;
                 free(found->key);
                 free(found->element);
                 // Pongo la chiave NULL e l'elemento a TOMBSTONE
@@ -449,7 +446,7 @@ void* hash_remove(HashTable* ht, char* key) {
                 found->element = TOMBSTONE;
 
                 // Rilascio il lock
-                        rwlunlock(&ht->lock);
+                rwlunlock(&ht->lock);
                 return found;
         }
 
@@ -500,8 +497,8 @@ void hash_set_resize_low_density(struct hash_table* ht, int fill_factor) {
 void destroy_hash_table(HashTable* ht) {
         for (size_t i = 0; i < ht->size; i++) {
                 if (ht->node[i].key != NULL) {
-                free(ht->node[i].key);
-                free(ht->node[i].element);
+                        free(ht->node[i].key);
+                        free(ht->node[i].element);
                 }
         }
 
@@ -509,6 +506,9 @@ void destroy_hash_table(HashTable* ht) {
         free(ht);
 }
 
+/*
+ * Stampa a schermo il contenuto della HashTable formattato
+ */
 void pretty_print(HashTable* ht) {
         size_t i;
         
@@ -518,10 +518,9 @@ void pretty_print(HashTable* ht) {
                 if (ht->node[i].key != NULL) {
                         printf("    %-10lu\t\t %-12s\t\t %8s\t \n\n",
                                i,
-                                ht->node[i].key,
-                                (char*) ht->node[i].element);
+                               ht->node[i].key,
+                               (char*) ht->node[i].element);
                 }
         }
         printf("\n\n");
 }
-
