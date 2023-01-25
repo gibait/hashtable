@@ -57,9 +57,9 @@ void* test_delete(void* _args) {
                 if (read > 0) {
                         strtok(buffer, "\n");
                         if (hash_get(ht, buffer) != NULL) {
-                        hash_remove(ht, buffer);
+                                hash_remove(ht, buffer);
+                        }
                 }
-        }
         }
 
         fclose(fp);
@@ -133,14 +133,14 @@ int main(int argc, char** argv) {
                 perror("Numero di parametri errato");
                 exit(1);
         }
-        
+
         table_size = strtol(argv[1], NULL, 10);
         if (table_size < 1) {
                 usage();
                 perror("Dimensione della HashTable troppo piccola");
                 exit(2);
         }
-        
+
         n_threads = (int) strtol(argv[3], NULL, 10);
         if (n_threads < 1) {
                 usage();
