@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
         HashTable *ht;
         size_t buffer_size = 100;
         char str[buffer_size];
-        char* buffer; 
+        char* buffer;
         void* element;
         FILE* fp;
         int read;
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
                 if (read > 0) {
                         strtok(buffer, "\n");
                         if (hash_get(ht, buffer) != NULL) {
-                        hash_remove(ht, buffer);
+                                hash_remove(ht, buffer);
                         }
                 }
         }
